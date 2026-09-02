@@ -168,3 +168,5 @@ to BeaverTails Canada Inc. or any other company.
 
 - Discord: [FireBall Codes](https://discord.gg/QpV82CFfVD)
 - Website: [fireball1725.ca](https://fireball1725.ca)
+
+If this saved you some time, you can [buy me a sushi roll](https://ko-fi.com/fireball1725).
