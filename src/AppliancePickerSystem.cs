@@ -36,6 +36,12 @@ namespace BeaverTails {
             ("Source - Meat", ApplianceReferences.SourceMeat),
             ("Source - Butter", ApplianceReferences.SourceButter),
             ("Source - Potato", ApplianceReferences.SourcePotato),
+
+            // The vanilla brownie chain, so a tray merge can be tested without a BrWOWnie run.
+            ("Source - Brownie Tray", ApplianceReferences.SourceBrownieTray),
+            ("Source - Egg", ApplianceReferences.SourceEgg),
+            ("Provider - Mixing Bowls", ApplianceReferences.ProviderMixingBowls),
+            ("Mixer", ApplianceReferences.Mixer),
         };
 
     // IngredientLib's dispensers, looked up by name because another mod's GDOs have no
