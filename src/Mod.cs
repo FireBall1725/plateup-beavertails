@@ -60,6 +60,8 @@ namespace BeaverTails {
       Bundle = mod.GetPacks<AssetBundleModPack>().SelectMany( pack => pack.AssetBundles ).FirstOrDefault();
       Log( Bundle == null ? "NO asset bundle found" : $"asset bundle loaded: {Bundle.name}" );
 
+      BrownieMergePatch.Apply();
+
       // Order matters: every group resolves its components by name at Convert time.
 
       // Items before their appliances, because the appliance resolves the item's ID for CItemProvider.

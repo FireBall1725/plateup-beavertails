@@ -19,38 +19,47 @@ namespace BeaverTails {
   // No MergeCondition fixes it: AttemptItemMerge reaches the tray through
   // SingleWrapperMergeResult, whose branch needs only CanComp on the brownie side, and that is
   // the same flag the BrWOWnie merge needs.
-  [HarmonyPatch(
-      typeof( ItemExtensions ),
-      nameof( ItemExtensions.AttemptItemMerge ),
-      new[]
-      {
-                typeof( EntityContext ),
-                typeof( Entity ),
-                typeof( int ),
-                typeof( int ),
-                typeof( ItemList ),
-                typeof( ItemList ),
-                typeof( MergeCondition ),
-                typeof( MergeCondition ),
-                typeof( bool ),
-      },
-      new[]
-      {
-                ArgumentType.Normal,
-                ArgumentType.Out,
-                ArgumentType.Normal,
-                ArgumentType.Normal,
-                ArgumentType.Normal,
-                ArgumentType.Normal,
-                ArgumentType.Ref,
-                ArgumentType.Ref,
-                ArgumentType.Normal,
-      } )]
+  //
+  // Patched by hand rather than through [HarmonyPatch], because PatchAll makes a binding
+  // failure fatal: a wrong signature here already took the whole mod down with "Undefined
+  // target method" and a screen telling players to check their dependencies. A miss now costs
+  // one recipe and says so in the log.
   internal static class BrownieMergePatch {
     private static int coated;
     private static bool announced;
 
-    // The four other overloads all call this one, so patching it covers every entry point.
+    // The four other AttemptItemMerge overloads all call this one.
+    private static readonly Type[] Signature = {
+      typeof( EntityContext ),
+      typeof( Entity ).MakeByRefType(),
+      typeof( int ),
+      typeof( int ),
+      typeof( ItemList ),
+      typeof( ItemList ),
+      typeof( MergeCondition ),
+      typeof( MergeCondition ),
+      typeof( bool ),
+    };
+
+    internal static void Apply() {
+      try {
+        var target = AccessTools.Method(
+            typeof( ItemExtensions ), nameof( ItemExtensions.AttemptItemMerge ), Signature );
+        if ( target == null ) {
+          Debug.LogError(
+              "[BeaverTails] no AttemptItemMerge matching our signature; BrWOWnie cannot be assembled" );
+          return;
+        }
+
+        new Harmony( BeaverTailsMod.Guid ).Patch(
+            target,
+            prefix: new HarmonyMethod( typeof( BrownieMergePatch ), nameof( Prefix )));
+        Debug.Log( "[BeaverTails] brownie merge patch applied" );
+      } catch ( Exception e ) {
+        Debug.LogError( $"[BeaverTails] brownie merge patch failed, BrWOWnie will not assemble: {e}" );
+      }
+    }
+
     private static void Prefix( int item1_id, int item2_id, ref MergeCondition c1, ref MergeCondition c2 ) {
       if ( coated == 0 ) {
         coated = Gdo.Own<Item>( BeaverTailHazelnutCoatedItem.NameId )?.ID ?? 0;
