@@ -1,0 +1,124 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>BeaverTails</AssemblyName>
+    <RootNamespace>BeaverTails</RootNamespace>
+    <!-- Owned by whoever is building, not by this file. CI passes -p:Version=<tag>; a local
+         build claims no release version, because a binary from someone's laptop is not one. -->
+    <Version Condition="'$(Version)' == ''">0.0.0-dev</Version>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- the game lives on the external drive; the Wine prefix symlinks to it -->
+    <!-- Machine-specific, and overridable from the command line so CI can point at a
+         steamcmd download: -p:GameDir=... -p:WorkshopDir=... The Condition is what makes
+         that work; a bare property would be reset by this file after the override. -->
+    <GameDir Condition="'$(GameDir)' == ''">/Volumes/Fire's Drive/steamapps/common/PlateUp/PlateUp</GameDir>
+    <ManagedDir>$(GameDir)/PlateUp_Data/Managed</ManagedDir>
+    <!-- workshop content the loader ACTUALLY reads lives inside the prefix, not on the drive -->
+    <WorkshopDir Condition="'$(WorkshopDir)' == ''">$(HOME)/Library/Application Support/com.gamemac.www/wine-engine/containers/virtual_containers/1/drive_c/Program Files (x86)/Steam/steamapps/workshop/content/1599600</WorkshopDir>
+    <!-- "content", not the folder above it, and that subfolder is not decoration.
+         ModUploader's Update tab uploads exactly $(modDirectory)/content and nothing else
+         (TabUpdate.findContentDir joins "content" onto the directory you pick), while the
+         metadata file plateup_mod_metadata.json stays in the parent. It only checks that
+         the folder EXISTS, so an empty one sails through the UI and then fails at submit
+         with "a generic failure from the steamworks API".
+         The loader reads both levels (ModSource.ListModFilePaths adds the folder and its
+         "content" child), so deploying here loads and uploads. Do not leave a second copy
+         in the parent: both get loaded, and two copies of the assembly is a duplicate mod
+         GUID. -->
+    <ModsDir>$(GameDir)/Mods/BeaverTails/content</ModsDir>
+    <!-- The checked-in bundle is the default, so a build needs no Unity. Point this at the
+         Unity project's output only when a model has actually changed. -->
+    <BundleFile Condition="'$(BundleFile)' == ''">$(MSBuildProjectDirectory)/assets/beavertails.assets</BundleFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Dev tools: F3 card picker, F4 appliance spawner, F5 force-end-of-day.
+       ON by default, because the normal reason to build this project is to chase a bug.
+       A shipped build must not bind hotkeys, so a RELEASE build is the explicit one:
+
+           dotnet build -p:DebugTools=false        <- the only build fit to upload
+
+       They are compiled out rather than flag-guarded, so in a release build the systems
+       are gone from the DLL, KitchenLib never finds an IModSystem to register, and no
+       Input.GetKeyDown runs at all. Every debug build prints a warning saying so, because
+       the failure mode this guards against is shipping one by accident. -->
+  <ItemGroup Condition="'$(DebugTools)' == 'false'">
+    <Compile Remove="src/CardPickerSystem.cs" />
+    <Compile Remove="src/CardPickerOverlay.cs" />
+    <Compile Remove="src/AppliancePickerSystem.cs" />
+    <Compile Remove="src/AppliancePickerOverlay.cs" />
+    <Compile Remove="src/PickerOverlayBase.cs" />
+    <Compile Remove="src/ForceEndOfDaySystem.cs" />
+    <Compile Remove="src/BrownieDiagnosticSystem.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="KitchenMods"><HintPath>$(ManagedDir)/KitchenMods.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Assembly-CSharp"><HintPath>$(ManagedDir)/Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Kitchen.Common"><HintPath>$(ManagedDir)/Kitchen.Common.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Kitchen.GameData"><HintPath>$(ManagedDir)/Kitchen.GameData.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="KitchenMode"><HintPath>$(ManagedDir)/KitchenMode.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Kitchen.RestaurantMode"><HintPath>$(ManagedDir)/Kitchen.RestaurantMode.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine"><HintPath>$(ManagedDir)/UnityEngine.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(ManagedDir)/UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.InputLegacyModule"><HintPath>$(ManagedDir)/UnityEngine.InputLegacyModule.dll</HintPath><Private>false</Private></Reference>
+    <!-- IMGUI, for the card picker overlay. Deliberately not PlateUp's menu system: this
+         needs no prefab, no view type and no Harmony patch, so a game update cannot break it. -->
+    <!-- Session.HostIdentifier is a SourceIdentifier, which lives here -->
+    <Reference Include="Controllers"><HintPath>$(ManagedDir)/Controllers.dll</HintPath><Private>false</Private></Reference>
+    <!-- Session.NetworkedPlayState, logged so a host and a client log can be told apart -->
+    <Reference Include="PlatformSettings"><HintPath>$(ManagedDir)/PlatformSettings.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.IMGUIModule"><HintPath>$(ManagedDir)/UnityEngine.IMGUIModule.dll</HintPath><Private>false</Private></Reference>
+    <!-- TMP_Text, to rewrite the colourblind tag baked into a cloned prefab. TMP_Text derives
+         from MaskableGraphic, so UnityEngine.UI has to come along or the type will not load. -->
+    <Reference Include="Unity.TextMeshPro"><HintPath>$(ManagedDir)/Unity.TextMeshPro.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UI"><HintPath>$(ManagedDir)/UnityEngine.UI.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.TextRenderingModule"><HintPath>$(ManagedDir)/UnityEngine.TextRenderingModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.AssetBundleModule"><HintPath>$(ManagedDir)/UnityEngine.AssetBundleModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Unity.Entities"><HintPath>$(ManagedDir)/Unity.Entities.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Unity.Collections"><HintPath>$(ManagedDir)/Unity.Collections.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Unity.Mathematics"><HintPath>$(ManagedDir)/Unity.Mathematics.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Microsoft.Bcl.HashCode"><HintPath>$(ManagedDir)/Microsoft.Bcl.HashCode.dll</HintPath><Private>false</Private></Reference>
+    <!-- KitchenData localisation objects derive from Odin's SerializedScriptableObject -->
+    <Reference Include="Sirenix.Serialization"><HintPath>$(ManagedDir)/Sirenix.Serialization.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Sirenix.Utilities"><HintPath>$(ManagedDir)/Sirenix.Utilities.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="KitchenLib"><HintPath>$(WorkshopDir)/2898069883/KitchenLib-Workshop.dll</HintPath><Private>false</Private></Reference>
+    <!-- Fryer Appliance mod, workshop 3765792217: supplies the KitchenFryer.FryMe process.
+         This is now a hard dependency of the mod, not just a build-time reference. -->
+    <Reference Include="FryerMod-Workshop"><HintPath>$(WorkshopDir)/3765792217/FryerMod-Workshop.dll</HintPath><Private>false</Private></Reference>
+    <!-- IngredientLib, workshop 2913877103: supplies honey, crackers and vinegar, none of
+         which the base game has, and owns the canonical cinnamon, banana and caramel that
+         this mod used to duplicate. Hard dependency. -->
+    <Reference Include="IngredientLib"><HintPath>$(WorkshopDir)/2913877103/IngredientLib.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="0Harmony"><HintPath>$(WorkshopDir)/2898033283/0Harmony.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+
+  <Target Name="WarnDebugTools" BeforeTargets="Build" Condition="'$(DebugTools)' != 'false'">
+    <Warning Text="DEBUG BUILD: F3/F4/F5 hotkeys are compiled IN. Do not upload this. Use -p:DebugTools=false to cut a release." />
+  </Target>
+
+  <!-- Drop the built mod straight into the folder the loader scans.
+       SkipDeploy exists because a release build is often run purely to CHECK it still
+       compiles, and without this that check quietly overwrites the installed debug build
+       with one that has no hotkeys in it. Verify with:
+           dotnet build -p:DebugTools=false -p:SkipDeploy=true -->
+  <Target Name="DeployToMods" AfterTargets="Build" Condition="'$(SkipDeploy)' != 'true'">
+    <MakeDir Directories="$(ModsDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModsDir)" />
+    <!-- the loader picks up any .assets file next to the DLL as an AssetBundleModPack.
+         Path goes through a property because MSBuild's Condition parser chokes on the
+         apostrophe in "Fire's Drive". -->
+    <Copy SourceFiles="$(BundleFile)" DestinationFolder="$(ModsDir)" Condition="Exists('$(BundleFile)')" />
+    <Warning Text="asset bundle not found at $(BundleFile)" Condition="!Exists('$(BundleFile)')" />
+    <Message Importance="high" Text="deployed $(TargetFileName) -> $(ModsDir)" />
+  </Target>
+
+</Project>

@@ -1,0 +1,125 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 FireBall1725
+#
+# Phase two, and UNPROVEN. Uploads a Release's zip to a Steam Workshop item with
+# steamcmd's workshop_build_item, which is the standard path for user-generated content but
+# has never been shown to work for PlateUp. PlateUp's own pipeline goes through
+# ModUploader, a GUI-only NSIS bundle, and the tags it sets at creation may or may not
+# survive a steamcmd write.
+#
+# So: manual dispatch only, never on a tag, and item_id has no default. Point it at a
+# throwaway item first, diff the before and after, and only then consider the live one.
+#
+# It uploads an existing Release artifact rather than rebuilding, so what reaches Steam is
+# byte-for-byte what was published and tested.
+name: Workshop upload
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag whose zip to upload
+        required: true
+      item_id:
+        description: Workshop item id to write to (use a test item first)
+        required: true
+      changenote:
+        description: Change note shown on the Workshop page
+        required: false
+        default: ""
+      i_know_this_is_the_live_item:
+        description: Required only when writing to the published mod
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Refuse the live item unless asked twice
+        env:
+          ITEM: ${{ inputs.item_id }}
+          ACK: ${{ inputs.i_know_this_is_the_live_item }}
+        run: |
+          # 3784683757 is the published mod with real subscribers. A bad write there is
+          # visible immediately and awkward to undo, so it takes a deliberate second yes.
+          if [ "$ITEM" = "3784683757" ] && [ "$ACK" != "true" ]; then
+            echo "::error::that is the live item; tick i_know_this_is_the_live_item to mean it"
+            exit 1
+          fi
+          case "$ITEM" in
+            ''|*[!0-9]*) echo "::error::item_id must be a number, got '$ITEM'"; exit 1 ;;
+          esac
+
+      - name: Snapshot the item before
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # An anonymous query cannot see a private or unlisted item, so a "not found" here
+          # is not proof of anything. It is recorded to diff against the after state.
+          curl -s -X POST https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/ \
+            -d "itemcount=1&publishedfileids[0]=${{ inputs.item_id }}" \
+            > before.json
+          cat before.json
+
+      - name: Fetch the Release zip
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release download "${{ inputs.tag }}" -D staging -p '*.zip' -R "${{ github.repository }}"
+          cd staging && unzip -q ./*.zip && rm -f ./*.zip
+          # steamcmd wants an absolute path, and it uploads the content folder only.
+          test -d BeaverTails/content || { echo "::error::no BeaverTails/content in the zip"; exit 1; }
+          echo "uploading:"; find BeaverTails -type f | sed 's|^|  |'
+
+      - name: Upload
+        env:
+          STEAM_USERNAME: ${{ secrets.STEAM_USERNAME }}
+          STEAM_CONFIG_VDF: ${{ secrets.STEAM_CONFIG_VDF }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/steamcmd"
+          curl -sSL https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz \
+            | tar zxf - -C "$HOME/steamcmd"
+          mkdir -p ~/Steam/config
+          echo "$STEAM_CONFIG_VDF" | base64 -d > ~/Steam/config/config.vdf
+
+          note="${{ inputs.changenote }}"
+          [ -n "$note" ] || note="Built from ${{ inputs.tag }}"
+
+          cat > item.vdf <<EOF
+          "workshopitem"
+          {
+            "appid"           "1599600"
+            "publishedfileid" "${{ inputs.item_id }}"
+            "contentfolder"   "$PWD/staging/BeaverTails/content"
+            "previewfile"     "$PWD/art/workshop_preview.png"
+            "changenote"      "$note"
+          }
+          EOF
+          cat item.vdf
+
+          "$HOME/steamcmd/steamcmd.sh" \
+            +login "$STEAM_USERNAME" \
+            +workshop_build_item "$PWD/item.vdf" \
+            +quit
+
+      - name: Snapshot the item after, and diff
+        run: |
+          curl -s -X POST https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/ \
+            -d "itemcount=1&publishedfileids[0]=${{ inputs.item_id }}" \
+            > after.json
+          {
+            echo "### Workshop item ${{ inputs.item_id }}"
+            echo '```'
+            diff <(python3 -m json.tool before.json) <(python3 -m json.tool after.json) \
+              && echo "(no visible change; an unlisted item is invisible to an anonymous query)"
+            echo '```'
+            echo "Check tags and visibility by hand before trusting this."
+          } >> "$GITHUB_STEP_SUMMARY"

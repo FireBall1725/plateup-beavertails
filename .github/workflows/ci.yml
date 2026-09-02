@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 FireBall1725
+#
+# This workflow does NOT build the mod, and cannot. Compiling needs PlateUp's own
+# assemblies from PlateUp_Data/Managed, three Workshop mod DLLs, and for the models a
+# licensed Unity 2020.3.48f1. None of that can be committed or fetched on a hosted runner.
+#
+# So it checks what is checkable without the game. The build and the release zip are
+# produced locally with scripts/package.sh and uploaded to the Workshop by hand.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SPDX headers present
+        run: |
+          missing=$(grep -rL "SPDX-License-Identifier: AGPL-3.0-only" \
+            --include="*.cs" --include="*.py" --include="*.sh" src scripts || true)
+          if [ -n "$missing" ]; then
+            echo "::error::missing SPDX header:"
+            printf '%s\n' "$missing"
+            exit 1
+          fi
+
+      - name: Copyright line is the handle, not a name or a slug
+        run: |
+          # FireBall1725 is capital F, capital B. The lowercase slug is for URLs and package
+          # ids, and the handle is never paired with a first name.
+          if grep -rn "Copyright (C) [0-9]* fireball1725\|Copyright (C) [0-9]* Fireball1725" \
+             --include="*.cs" --include="*.py" --include="*.sh" src scripts; then
+            echo "::error::copyright line must read FireBall1725"
+            exit 1
+          fi
+
+      - name: Release build ships no hotkeys
+        run: |
+          # The picker systems are removed from the compile in a release build. If a file is
+          # renamed and the csproj is not updated, the removal silently stops matching and a
+          # build with F3, F4 and F5 bound gets uploaded.
+          for f in src/CardPickerSystem.cs src/CardPickerOverlay.cs \
+                   src/AppliancePickerSystem.cs src/AppliancePickerOverlay.cs \
+                   src/PickerOverlayBase.cs src/ForceEndOfDaySystem.cs \
+                   src/BrownieDiagnosticSystem.cs; do
+            if [ ! -f "$f" ]; then
+              echo "::error::$f is listed in the csproj DebugTools removal but does not exist"
+              exit 1
+            fi
+            if ! grep -q "Compile Remove=\"$f\"" BeaverTails.csproj; then
+              echo "::error::$f is not removed from a release build in BeaverTails.csproj"
+              exit 1
+            fi
+          done
+
+      - name: Adjacent parens are tight
+        run: |
+          # The rest of the formatting needs dotnet format, which cannot load this project
+          # without the game's assemblies. This half is pure text, so it can be gated here.
+          find src -name '*.cs' -print0 | xargs -0 python3 scripts/tighten_parens.py --check
+
+      - name: Things a player must tell apart are different colours
+        run: |
+          # Players reported four pairs of items as indistinguishable. Nothing in the build
+          # looks at colours, so nothing caught it. This does, and it needs no game.
+          python3 scripts/colour_check.py
+
+      - name: editorconfig
+        uses: editorconfig-checker/action-editorconfig-checker@v2

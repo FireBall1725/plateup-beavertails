@@ -1,0 +1,26 @@
+# Build output
+bin/
+obj/
+*.user
+
+# macOS
+.DS_Store
+
+# Packaged releases
+dist/
+
+# Python, from running the art and check scripts
+__pycache__/
+
+# Blender sources, FBX and previews. Local for now, until we decide what an art directory
+# should look like in a public repo. The workshop preview stays, because workshop-upload.yml
+# uploads it.
+art/*
+!art/workshop_preview.png
+
+# Working notes: planning, decisions and half-finished ideas, kept local.
+PLAN.md
+
+# Wiki generation, still in review on its own branch.
+wiki/
+scripts/build_wiki_preview.py

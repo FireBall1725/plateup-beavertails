@@ -1,0 +1,156 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 FireBall1725
+#
+# Phase one: build the mod and attach the Workshop zip to a GitHub Release. It does NOT
+# upload to Steam; that is still done by hand with ModUploader, which is a GUI-only NSIS
+# bundle and cannot be scripted.
+#
+# The build needs PlateUp's own assemblies and three Workshop mod DLLs, none of which can
+# live in this repo. steamcmd fetches them with an account that owns the game, so nothing
+# copyrighted is ever committed. The asset bundle is checked in, so no Unity is involved.
+#
+# ONE-TIME SETUP, all repo secrets:
+#
+#   STEAM_USERNAME    the Steam account that owns PlateUp
+#   STEAM_CONFIG_VDF  base64 of a config.vdf from a steamcmd session that has already
+#                     satisfied Steam Guard, so CI never needs a code. Produce it with:
+#
+#                       steamcmd +login <user> +quit          # answer the Guard prompt
+#                       base64 -w0 ~/Steam/config/config.vdf  # macOS: base64 -i <file>
+#
+#                     Rotate it if the account's Guard is reset. It is the whole account,
+#                     so treat it accordingly: a self-hosted runner that anyone else can
+#                     schedule jobs on can read it.
+#
+# Set the RUNNER_LABEL repo variable to target a self-hosted runner. Unset, it uses
+# ubuntu-latest, which works but re-downloads the game every run.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      draft:
+        description: Create the Release as a draft
+        type: boolean
+        default: true
+  push:
+    tags: ["[0-9][0-9].[0-9]*.[0-9]*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0"
+
+      - name: Decide the version
+        id: version
+        run: |
+          # A tag is a release and names itself. Anything else is not one, and says so.
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            v="${GITHUB_REF_NAME}"
+          else
+            v="0.0.0-dev"
+          fi
+          echo "building $v"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      # PlateUp's build id keys the cache, so a game update invalidates it and nothing else
+      # does. Only Managed/ is kept: the rest of the depot is several GB of assets the
+      # compiler never reads.
+      - name: Cache the game assemblies
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            game/Managed
+            game/workshop
+          key: plateup-${{ hashFiles('BeaverTails.csproj') }}-v1
+
+      - name: Fetch the game and the mod dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        env:
+          STEAM_USERNAME: ${{ secrets.STEAM_USERNAME }}
+          STEAM_CONFIG_VDF: ${{ secrets.STEAM_CONFIG_VDF }}
+        run: |
+          set -euo pipefail
+          if [ -z "${STEAM_USERNAME:-}" ] || [ -z "${STEAM_CONFIG_VDF:-}" ]; then
+            echo "::error::STEAM_USERNAME and STEAM_CONFIG_VDF are not set; see the header of this workflow"
+            exit 1
+          fi
+
+          # The official tarball, not apt: the steamcmd package lives in multiverse behind an
+          # interactive licence prompt, and a self-hosted runner may have neither sudo nor apt.
+          mkdir -p "$HOME/steamcmd"
+          curl -sSL https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz \
+            | tar zxf - -C "$HOME/steamcmd"
+
+          # Seed the already-authorised session so Steam Guard never prompts.
+          mkdir -p ~/Steam/config
+          echo "$STEAM_CONFIG_VDF" | base64 -d > ~/Steam/config/config.vdf
+
+          # PlateUp is Windows-only, so the platform has to be forced on a Linux runner.
+          "$HOME/steamcmd/steamcmd.sh" \
+            +@sSteamCmdForcePlatformType windows \
+            +force_install_dir "$PWD/game/install" \
+            +login "$STEAM_USERNAME" \
+            +app_update 1599600 validate \
+            +workshop_download_item 1599600 2898069883 \
+            +workshop_download_item 1599600 2913877103 \
+            +workshop_download_item 1599600 3765792217 \
+            +quit
+
+          mkdir -p game/Managed game/workshop
+          # The Windows depot nests the game one level deeper, PlateUp/PlateUp_Data, which is
+          # the same doubled folder INSTALL.md describes on Mac. Find it rather than assume.
+          managed=$(find game/install -maxdepth 4 -type d -path '*/PlateUp_Data/Managed' -print -quit)
+          [ -n "$managed" ] || { echo "::error::no PlateUp_Data/Managed under game/install"; exit 1; }
+          echo "found assemblies at $managed"
+          cp -r "$managed"/. game/Managed/
+          ws=$(find game/install "$HOME" -maxdepth 8 -type d -path '*/workshop/content/1599600' -print -quit)
+          [ -n "$ws" ] || { echo "::error::no workshop content found"; exit 1; }
+          cp -r "$ws"/. game/workshop/
+          rm -rf game/install
+          echo "kept $(ls game/Managed | wc -l) assemblies and $(ls game/workshop | wc -l) workshop items"
+
+      - name: Build and package
+        env:
+          # The csproj wants the directory ABOVE PlateUp_Data, so Managed is reconstructed
+          # under a stub rather than pointed at directly.
+          GAME_DIR: ${{ github.workspace }}/game/stub
+          WORKSHOP_DIR: ${{ github.workspace }}/game/workshop
+        run: |
+          set -euo pipefail
+          mkdir -p game/stub/PlateUp_Data
+          ln -sfn "$PWD/game/Managed" game/stub/PlateUp_Data/Managed
+          ./scripts/package.sh '${{ steps.version.outputs.version }}'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BeaverTails-${{ steps.version.outputs.version }}
+          path: dist/*.zip
+          if-no-files-found: error
+
+      - name: Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "Beaver Tails ${{ steps.version.outputs.version }}" \
+            --generate-notes \
+            ${{ inputs.draft && '--draft' || '' }} \
+            dist/BeaverTails-${{ steps.version.outputs.version }}.zip
+
+      - name: Upload is still manual
+        run: |
+          echo "### Built BeaverTails ${{ steps.version.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "The zip is attached to this run. Steam upload is still by hand:" >> "$GITHUB_STEP_SUMMARY"
+          echo "extract over \`Mods/BeaverTails\` and use ModUploader's Update tab." >> "$GITHUB_STEP_SUMMARY"
