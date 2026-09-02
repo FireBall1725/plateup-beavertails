@@ -76,6 +76,12 @@ inactive spawns an invisible item. Park clones under an inactive parent instead.
 **Colour lives in `_Color0`, not `_Color`.** The game's Simple Flat shader has no `_Color`, so
 `material.color = x` is a silent no-op.
 
+**Clearing another item's `CPreventItemMerge` opens every merge, not the one you want.**
+Removing `NoMerge` from the vanilla Brownie let a brownie tray wrap a brownie and fill with raw
+dough. No `MergeCondition` fixes it, because `AttemptItemMerge` reaches the tray through a
+branch that needs only `CanComp` on the brownie side, which is the flag BrWOWnie needs too.
+`BrownieMergePatch` relaxes the condition for that one pairing instead.
+
 **Adding a helper method directly above a patched method steals its attributes.** C# attributes
 bind to the next declaration, so an inserted helper takes the `[HarmonyPatch]` and the mod fails
 to load with a parameter-binding error naming a method you did not patch. Attach helpers below a

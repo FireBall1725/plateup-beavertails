@@ -566,34 +566,6 @@ namespace BeaverTails {
                 + string.Join( ", ", taught.ToArray()));
     }
 
-    // CPreventItemMerge is checked before any group is looked up, so ours cannot fire while it is set.
-    public static void AllowMerging( int itemId, string label ) {
-      var item = Item( itemId );
-      if ( item == null ) {
-        Debug.LogError( $"[BeaverTails] {label}: item not found, merge block not cleared" );
-        return;
-      }
-
-      if ( item.Properties == null ) {
-        Debug.Log( $"[BeaverTails] {label}: no properties, nothing to clear" );
-        return;
-      }
-
-      // Logged rather than assumed, because the condition says why the game blocked it and
-      // a future update could change it.
-      var cleared = new List<string>();
-      for ( var i = item.Properties.Count - 1; i >= 0; i-- ) {
-        if ( item.Properties[i] is Kitchen.CPreventItemMerge block ) {
-          cleared.Add( block.Condition.ToString());
-          item.Properties.RemoveAt( i );
-        }
-      }
-
-      Debug.Log( cleared.Count == 0
-          ? $"[BeaverTails] {label}: no merge block present"
-          : $"[BeaverTails] {label}: cleared merge block {string.Join( ", ", cleared.ToArray())}" );
-    }
-
     public static T Own<T>( string uniqueNameId ) where T : GameDataObject =>
         GDOUtils.GetCustomGameDataObject( BeaverTailsMod.Guid, uniqueNameId )?.GameDataObject as T;
 

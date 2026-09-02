@@ -789,7 +789,6 @@ namespace BeaverTails {
     // The vanilla Brownie carries CPreventItemMerge, which blocks the set below until it is cleared.
     public override void OnRegister( ItemGroup gameDataObject ) {
       base.OnRegister( gameDataObject );
-      Gdo.AllowMerging( ItemReferences.Brownie, "vanilla Brownie" );
     }
 
     public const string NameId = "beavertail_brownie";
