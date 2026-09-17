@@ -61,6 +61,7 @@ namespace BeaverTails {
       Log( Bundle == null ? "NO asset bundle found" : $"asset bundle loaded: {Bundle.name}" );
 
       BrownieMergePatch.Apply();
+      PlatedMergePatch.Apply();
 
       // Order matters: every group resolves its components by name at Convert time.
 
