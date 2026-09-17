@@ -46,7 +46,8 @@ dll="$(find bin/Release -name BeaverTails.dll -print -quit 2>/dev/null || true)"
 # A release build must not bind hotkeys. DebugTools=false compiles the picker systems out,
 # so their type names should be absent from the assembly; if they are present the flag did
 # not take and the build would ship F3, F4 and F5 bound in someone else's game.
-for symbol in CardPickerSystem AppliancePickerSystem ForceEndOfDaySystem BrownieDiagnosticSystem; do
+for symbol in CardPickerSystem AppliancePickerSystem ForceEndOfDaySystem BrownieDiagnosticSystem \
+              UnlockPackDiagnostic; do
   if strings "$dll" 2>/dev/null | grep -qx "$symbol"; then
     echo "package: $symbol is still in the assembly, DebugTools=false did not take" >&2
     exit 1
