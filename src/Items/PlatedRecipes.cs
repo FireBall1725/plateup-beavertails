@@ -83,6 +83,13 @@ namespace BeaverTails {
       protected set { }
     }
 
+    // The bin reads DisposesTo and nothing else; DirtiesTo only covers a customer finishing.
+    // Without this, binning a plated tail eats the plate along with the food.
+    public override Item DisposesTo {
+      get => Gdo.Item( ItemReferences.PlateDirty );
+      protected set { }
+    }
+
     // The view renders the components and is where KitchenLib writes the colourblind labels.
     public override bool AutoSetupItemGroupView {
       get => true;
