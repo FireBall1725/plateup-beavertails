@@ -27,6 +27,11 @@ namespace BeaverTails {
             ("Freezer", ApplianceReferences.Freezer),
             ("Oven", ApplianceReferences.Oven),
             ("Hob", ApplianceReferences.Hob),
+            // The three hobs side by side, because the caramelise process runs at each one's
+            // own rate and a flat rate is not visible without something to race it against.
+            ("Hob - Safe", ApplianceReferences.HobSafe),
+            ("Hob - Danger", ApplianceReferences.HobDanger),
+            ("Manual Hob", ApplianceReferences.ManualHob),
             ("Source - Chocolate", ApplianceReferences.SourceChocolate),
             ("Source - Chocolate Syrup", ApplianceReferences.SourceChocolateSyrup),
             ("Source - Strawberry Syrup", ApplianceReferences.SourceStrawberrySyrup),
