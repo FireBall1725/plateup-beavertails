@@ -92,8 +92,11 @@ mandatory `Min = 2, Max = 2` set, so no half-built state exists to launder.
 **The plate's side slot takes any item, not the sides you meant.** `CanContainSide` on the group
 plus `IsMergeableSide` on the item is the whole test in `IsGroupSatisfied`; there is no allow-list.
 A sliced lemon dropped onto a finished plate was swallowed, drew nothing, and `IsRequestSatisfied`
-still reported the dish as correct. `PlatedMergePatch` refuses that pairing by name, because an
-allow-list would also have to name the maple syrup serving and every condiment added after it.
+still reported the dish as correct. `PlatedMergePatch` refuses that pairing by name rather than
+allow-listing the sides, because the slot is how our own poutine and chips reach a plate. The
+maple syrup card is NOT in this slot: an extra order is matched by `AcceptIntoExtraSatisfaction`
+against `CWaitingForItem.Extra` and skipped entirely when `TransferFlags.RequireMerge` is set, so
+the bottle goes to the table and never merges into the dish.
 
 **`Appliance.ApplianceProcesses.Speed` is per appliance, and a custom process has to copy it.**
 `ProcessesView` turns the entry into `Speed / Duration`, so writing a flat 1 makes a Danger Hob and

@@ -25,9 +25,12 @@ namespace BeaverTails {
   // Classic's second set names both dustings so either can go on first, and a set cannot know
   // which one the tail in the other set already used.
   //
-  // The allow-list an "only these may be sides" rule would need is not a fixed list: the maple
-  // syrup card pours through the same slot, and so would any condiment added later. So these are
-  // named refusals, not a whitelist.
+  // Named refusals rather than an "only these may be sides" allow-list, because the slot is a
+  // base-game mechanic our own poutine and chips sides ride, so an allow-list would have to
+  // enumerate them and stay correct as sides are added. It would NOT have broken the maple syrup
+  // card: that goes through AcceptIntoExtraSatisfaction, which returns early on
+  // TransferFlags.RequireMerge and matches the bottle against CWaitingForItem.Extra. The syrup
+  // never touches the plate; the customer asks mid-meal and you carry the bottle to the table.
   //
   // Separate from BrownieMergePatch, which patches the same method, so a binding failure in one
   // costs one recipe and says so in the log rather than taking both down.
