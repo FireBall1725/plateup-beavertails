@@ -52,7 +52,7 @@ jobs:
           for f in src/CardPickerSystem.cs src/CardPickerOverlay.cs \
                    src/AppliancePickerSystem.cs src/AppliancePickerOverlay.cs \
                    src/PickerOverlayBase.cs src/ForceEndOfDaySystem.cs \
-                   src/BrownieDiagnosticSystem.cs; do
+                   src/BrownieDiagnosticSystem.cs src/UnlockPackDiagnostic.cs; do
             if [ ! -f "$f" ]; then
               echo "::error::$f is listed in the csproj DebugTools removal but does not exist"
               exit 1

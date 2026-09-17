@@ -58,6 +58,7 @@
     <Compile Remove="src/PickerOverlayBase.cs" />
     <Compile Remove="src/ForceEndOfDaySystem.cs" />
     <Compile Remove="src/BrownieDiagnosticSystem.cs" />
+    <Compile Remove="src/UnlockPackDiagnostic.cs" />
   </ItemGroup>
 
   <ItemGroup>
