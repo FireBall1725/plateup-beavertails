@@ -77,6 +77,7 @@ namespace BeaverTails {
       AddGameDataObject<PistachioSpreadItem>();
       AddGameDataObject<VanillaIcingItem>();
       AddGameDataObject<MapleButterItem>();
+      AddGameDataObject<CinnamonSugarItem>();
       AddGameDataObject<HazelnutJarItem>();
       AddGameDataObject<PeanutJarItem>();
       AddGameDataObject<CheesecakeJarItem>();

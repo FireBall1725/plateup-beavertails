@@ -11,7 +11,7 @@ using Unity.Entities;
 using UnityEngine;
 
 namespace BeaverTails {
-  // Two merges the mod has to refuse, both of which the game would otherwise allow silently.
+  // One merge the mod has to refuse, which the game would otherwise allow silently.
   //
   // A lemon slice added to a finished plate vanished. `ItemGroup.CanContainSide` is on for every
   // plated recipe so a poutine or a side of chips can ride along, but `IsGroupSatisfied` treats
@@ -20,10 +20,6 @@ namespace BeaverTails {
   // still reported the dish as correct. It cannot instead become a Killaloe: an ItemList is flat,
   // so plate-plus-classic-plus-lemon and plate-plus-killaloe are different shapes, and teaching
   // the Killaloe plate to accept both makes a plain plated Classic ambiguous with it.
-  //
-  // A dusting added to a tail that already carries it made a Classic out of two cinnamons. The
-  // Classic's second set names both dustings so either can go on first, and a set cannot know
-  // which one the tail in the other set already used.
   //
   // Named refusals rather than an "only these may be sides" allow-list, because the slot is a
   // base-game mechanic our own poutine and chips sides ride, so an allow-list would have to
@@ -36,7 +32,6 @@ namespace BeaverTails {
   // costs one recipe and says so in the log rather than taking both down.
   internal static class PlatedMergePatch {
     private static readonly HashSet<int> Plated = new HashSet<int>();
-    private static readonly Dictionary<int, int> AlreadyDusted = new Dictionary<int, int>();
     private static bool resolved;
     private static bool announced;
 
@@ -89,21 +84,10 @@ namespace BeaverTails {
         }
       }
 
-      Pair( BeaverTailCinnamonItem.NameId, Gdo.Lib( Gdo.LibKeys.Cinnamon ));
-      Pair( BeaverTailSugarItem.NameId, Gdo.Item( ItemReferences.Sugar ));
-
       Debug.Log( $"[BeaverTails] plated merge patch resolved {Plated.Count}"
-                + $" of {PlatedRecipeItem.AllNameIds.Length} plates"
-                + $" and {AlreadyDusted.Count} of 2 dusted tails" );
+                + $" of {PlatedRecipeItem.AllNameIds.Length} plates" );
 
       return Plated.Count > 0;
-    }
-
-    private static void Pair( string tailNameId, Item dusting ) {
-      var tail = Gdo.Own<Item>( tailNameId );
-      if ( tail != null && dusting != null ) {
-        AlreadyDusted[tail.ID] = dusting.ID;
-      }
     }
 
     private static void Prefix( int item1_id, int item2_id, ref MergeCondition c1, ref MergeCondition c2 ) {
@@ -120,16 +104,11 @@ namespace BeaverTails {
 
       if ( !announced ) {
         announced = true;
-        Debug.Log( "[BeaverTails] refused a merge onto a finished plate or an already dusted tail" );
+        Debug.Log( "[BeaverTails] refused a lemon onto a finished plate" );
       }
     }
 
-    private static bool Refuse( int host, int incoming ) {
-      if ( incoming == ItemReferences.LemonSliced && Plated.Contains( host )) {
-        return true;
-      }
-
-      return AlreadyDusted.TryGetValue( host, out var dusting ) && incoming == dusting;
-    }
+    private static bool Refuse( int host, int incoming ) =>
+        incoming == ItemReferences.LemonSliced && Plated.Contains( host );
   }
 }

@@ -86,8 +86,11 @@ branch that needs only `CanComp` on the brownie side, which is the flag BrWOWnie
 creates the result with `is_partial` taken from the PLATE's satisfaction, not the food's, and
 nothing rechecks it afterwards. A tail carrying one of the two dustings served as a finished
 Cinnamon Sugar Tail because of this, and the plate's component list keeps the tail as a single id,
-so the view cannot tell the variants apart either. Build each stage as its own item with one
-mandatory `Min = 2, Max = 2` set, so no half-built state exists to launder.
+so the view cannot tell the variants apart either. The fix is `IsMandatory = true`: a mandatory set
+short of its `Min` reports `Impossible` rather than `Partial`, so the half-built shape is refused
+and has to land on an item of its own. Give it one, rather than reaching for `IsMandatory = false`
+to make the assembly order flexible. Order stays flexible anyway, because a merge concatenates
+component lists and every route reaches the same flat list.
 
 **The plate's side slot takes any item, not the sides you meant.** `CanContainSide` on the group
 plus `IsMergeableSide` on the item is the whole test in `IsGroupSatisfied`; there is no allow-list.

@@ -103,7 +103,8 @@ namespace BeaverTails {
     protected override string DustingTag => "S";
   }
 
-  // The finished dusted tail: a once-dusted tail plus the other dusting, in either order.
+  // The finished dusted tail. Reached three ways: cinnamon then sugar, sugar then cinnamon, or
+  // premixed cinnamon sugar in one go.
   public class BeaverTailClassicItem : CustomItemGroup {
     public const string NameId = "beavertail_classic";
 
@@ -156,9 +157,7 @@ namespace BeaverTails {
       return tail;
     }
 
-    // No component mappings, because a Classic always carries both dustings and the components
-    // it reports are the once-dusted tail and a dusting, neither of which names a child here.
-    // A mapping would hide whichever dusting went on first.
+    // An unmapped component draws nothing, so anything in Sets needs a group here too.
     public override void OnRegister( ItemGroup gameDataObject ) {
       base.OnRegister( gameDataObject );
 
@@ -168,17 +167,26 @@ namespace BeaverTails {
       }
 
       var view = tail.GetComponent<ItemGroupView>() ?? tail.AddComponent<ItemGroupView>();
-      view.ComponentGroups = new List<ItemGroupView.ComponentGroup>();
+      var groups = new List<ItemGroupView.ComponentGroup>();
 
-      foreach ( var child in new[] { CinnamonChild, SugarChild } ) {
+      foreach ( var (child, item) in new[]
+      {
+                (CinnamonChild, Gdo.Lib( Gdo.LibKeys.Cinnamon )),
+                (SugarChild, Gdo.Item( ItemReferences.Sugar )),
+      } ) {
         var found = tail.transform.Find( child );
-        if ( found == null ) {
-          Debug.LogWarning( $"[BeaverTails] Classic: no '{child}' on the prefab" );
+        if ( found == null || item == null ) {
+          Debug.LogWarning( $"[BeaverTails] Classic: no '{child}' to map" );
           continue;
         }
 
-        found.gameObject.SetActive( true );
+        groups.Add( new ItemGroupView.ComponentGroup {
+          Item = item,
+          GameObject = found.gameObject,
+        } );
       }
+
+      view.ComponentGroups = groups;
     }
 
     internal static Color CookedColour => new Color( 0.72f, 0.47f, 0.22f );
@@ -187,9 +195,17 @@ namespace BeaverTails {
 
     internal static Color Sugar => new Color( 0.96f, 0.94f, 0.90f );
 
-    // Two mandatory sets of one: the once-dusted tail, and the dusting it still needs. Both are
-    // satisfied by the single merge that finishes the recipe, so a Classic is never Partial,
-    // and a tail carrying only one dusting is a different item that no plate will accept.
+    // Three sets of one, all MANDATORY. Mandatory is what closes the bug: a set short of Min
+    // reports Impossible rather than Partial, so a tail wearing one dusting is not a half-built
+    // Classic that a plate can finish for it. It is refused outright, and lands on
+    // BeaverTailCinnamonItem or BeaverTailSugarItem instead, which are complete items.
+    //
+    // Every way in still works, because a merge concatenates component lists and this shape is
+    // reached by all three:
+    //   a once-dusted tail plus the other dusting -> {cooked, Cinnamon, Sugar}
+    //   a cooked tail plus premixed cinnamon sugar -> {cooked, Cinnamon, Sugar}
+    // AttemptItemMerge finds both through SingleWrapperMergeResult, which flattens the group on
+    // whichever side is already a group.
     public override List<ItemGroup.ItemSet> Sets {
       get => new List<ItemGroup.ItemSet>
       {
@@ -198,22 +214,21 @@ namespace BeaverTails {
                     Min = 1,
                     Max = 1,
                     IsMandatory = true,
-                    Items = new List<Item>
-                    {
-                        Gdo.Own<Item>(BeaverTailCinnamonItem.NameId),
-                        Gdo.Own<Item>(BeaverTailSugarItem.NameId),
-                    },
+                    Items = new List<Item> { Gdo.Own<Item>(BeaverTailCookedItem.NameId) },
                 },
                 new ItemGroup.ItemSet
                 {
                     Min = 1,
                     Max = 1,
                     IsMandatory = true,
-                    Items = new List<Item>
-                    {
-                        Gdo.Lib(Gdo.LibKeys.Cinnamon),
-                        Gdo.Item(ItemReferences.Sugar),
-                    },
+                    Items = new List<Item> { Gdo.Lib(Gdo.LibKeys.Cinnamon) },
+                },
+                new ItemGroup.ItemSet
+                {
+                    Min = 1,
+                    Max = 1,
+                    IsMandatory = true,
+                    Items = new List<Item> { Gdo.Item(ItemReferences.Sugar) },
                 },
             };
       protected set { }
@@ -225,14 +240,11 @@ namespace BeaverTails {
     }
 
     // An ItemGroup's label comes from the view's ComponentLabels, not from ColourBlindTag. The
-    // view walks this list in order, not the components, so cinnamon-then-sugar and
-    // sugar-then-cinnamon both read CS.
+    // view walks this list in order rather than the components, so either assembly order reads CS.
     public override List<ItemGroupView.ColourBlindLabel> Labels {
       get => new List<ItemGroupView.ColourBlindLabel>
       {
-                new ItemGroupView.ColourBlindLabel { Item = Gdo.Own<Item>(BeaverTailCinnamonItem.NameId), Text = "C" },
                 new ItemGroupView.ColourBlindLabel { Item = Gdo.Lib(Gdo.LibKeys.Cinnamon), Text = "C" },
-                new ItemGroupView.ColourBlindLabel { Item = Gdo.Own<Item>(BeaverTailSugarItem.NameId), Text = "S" },
                 new ItemGroupView.ColourBlindLabel { Item = Gdo.Item(ItemReferences.Sugar), Text = "S" },
             };
       protected set { }

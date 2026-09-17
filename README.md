@@ -26,14 +26,21 @@ Beaver Tail + Cinnamon          ->  Beaver Tail - Cinnamon
 Beaver Tail + Sugar             ->  Beaver Tail - Sugar
 Tail - Cinnamon + Sugar         ->  Beaver Tail - Cinnamon Sugar
 Tail - Sugar + Cinnamon         ->  Beaver Tail - Cinnamon Sugar
+Cinnamon + Sugar                ->  Cinnamon Sugar       (premixed, one application)
+Beaver Tail + Cinnamon Sugar    ->  Beaver Tail - Cinnamon Sugar
 Cinnamon Sugar + Plate          ->  the menu item
 ```
 
-Either dusting can go on first. The two single-dusting tails are real items rather than a
-half-built Cinnamon Sugar, because a partial `ItemGroup` turns into a complete one the moment it
-goes on a plate: a tail carrying only cinnamon plated, wore the finished model, and was served as
-a Cinnamon Sugar Tail. Giving each stage its own item leaves no half-built state for the plate to
-launder, and no plate accepts a tail that is still short a dusting.
+Three ways in, and all of them land on the same item: cinnamon first, sugar first, or the two
+mixed beforehand and tipped on in one go. The premix names no recipe and needs to; a merge
+concatenates component lists, so a cooked tail plus premixed cinnamon sugar reaches the same
+`{cooked, cinnamon, sugar}` the two-step route does.
+
+The Classic's three sets are all mandatory, and that is what stops a tail wearing one dusting
+being served as a finished one. A mandatory set short of its `Min` reports `Impossible` rather
+than `Partial`, so the half-dusted shape is refused outright and lands on its own item instead.
+It matters because a partial `ItemGroup` turns into a complete one the moment it goes on a plate:
+`AttemptComponentMerge` reads the plate's satisfaction and not the food's.
 
 Dough is its own `ItemGroup` rather than the base game's, because an item gets one process
 per branch and the game's `Dough` has already spent its Knead on pie crust and its Cook on
