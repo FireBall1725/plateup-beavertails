@@ -76,7 +76,6 @@ namespace BeaverTails {
       AddGameDataObject<PistachioSpreadItem>();
       AddGameDataObject<VanillaIcingItem>();
       AddGameDataObject<MapleButterItem>();
-      AddGameDataObject<CinnamonSugarItem>();
       AddGameDataObject<HazelnutJarItem>();
       AddGameDataObject<PeanutJarItem>();
       AddGameDataObject<CheesecakeJarItem>();
@@ -121,6 +120,8 @@ namespace BeaverTails {
       AddGameDataObject<BeaverTailDoughItem>();
 
       // named recipes, each stage before anything that builds on it
+      AddGameDataObject<BeaverTailCinnamonItem>();
+      AddGameDataObject<BeaverTailSugarItem>();
       AddGameDataObject<BeaverTailClassicItem>();
       AddGameDataObject<BeaverTailKillaloeItem>();
       AddGameDataObject<BeaverTailPistachioCoatedItem>();

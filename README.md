@@ -15,16 +15,25 @@ are load-bearing, and the section on dependencies below says what breaks without
 
 ## The base dish
 
-Six items, and the whole mod hangs off this chain:
+Eight items, and the whole mod hangs off this chain:
 
 ```
 Flour + Milk                    ->  Beaver Tail Dough      (an ItemGroup, no process)
 Beaver Tail Dough   --Knead 2s->     Beaver Tail - Raw
 Beaver Tail - Raw   --FryMe 4s->     Beaver Tail
 Beaver Tail         --FryMe 20s->    Beaver Tail - Burned  (IsBad)
-Beaver Tail + Sugar             ->  Beaver Tail - Cinnamon Sugar
+Beaver Tail + Cinnamon          ->  Beaver Tail - Cinnamon
+Beaver Tail + Sugar             ->  Beaver Tail - Sugar
+Tail - Cinnamon + Sugar         ->  Beaver Tail - Cinnamon Sugar
+Tail - Sugar + Cinnamon         ->  Beaver Tail - Cinnamon Sugar
 Cinnamon Sugar + Plate          ->  the menu item
 ```
+
+Either dusting can go on first. The two single-dusting tails are real items rather than a
+half-built Cinnamon Sugar, because a partial `ItemGroup` turns into a complete one the moment it
+goes on a plate: a tail carrying only cinnamon plated, wore the finished model, and was served as
+a Cinnamon Sugar Tail. Giving each stage its own item leaves no half-built state for the plate to
+launder, and no plate accepts a tail that is still short a dusting.
 
 Dough is its own `ItemGroup` rather than the base game's, because an item gets one process
 per branch and the game's `Dough` has already spent its Knead on pie crust and its Cook on
