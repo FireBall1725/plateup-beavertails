@@ -169,6 +169,37 @@ namespace BeaverTails {
       return model.transform;
     }
 
+    // Give an appliance the collision of another one.
+    //
+    // A reskin changes what an appliance LOOKS like and nothing else, so a bin built on a nut
+    // dispenser and wearing a countertop has a nut dispenser's footprint: a cook walking along
+    // a row of counters snags on it, because it is not the shape it appears to be. The donor's
+    // collider is also offset from the appliance origin, and an appliance rotates about that
+    // origin, so the mismatch is worse at some rotations than others.
+    //
+    // Only the colliders are replaced. The host keeps its own views and properties, which are
+    // the reason it was borrowed in the first place.
+    public static UnityEngine.GameObject MatchCollision( UnityEngine.GameObject appliance, int donorId ) {
+      var donor = Appliance( donorId )?.Prefab;
+      if ( appliance == null || donor == null ) {
+        UnityEngine.Debug.LogWarning( $"[BeaverTails] no donor {donorId} to take collision from" );
+        return appliance;
+      }
+
+      foreach ( var collider in appliance.GetComponentsInChildren<UnityEngine.Collider>( true )) {
+        UnityEngine.Object.DestroyImmediate( collider );
+      }
+
+      foreach ( var box in donor.GetComponentsInChildren<UnityEngine.BoxCollider>( true )) {
+        var copy = appliance.AddComponent<UnityEngine.BoxCollider>();
+        copy.center = box.center;
+        copy.size = box.size;
+        copy.isTrigger = box.isTrigger;
+      }
+
+      return appliance;
+    }
+
     // Replace an appliance's visible geometry, scaled to the footprint the original occupied.
     public static UnityEngine.Transform ReskinAppliance(
         UnityEngine.GameObject appliance, string bundleAsset, UnityEngine.Color tint ) {
