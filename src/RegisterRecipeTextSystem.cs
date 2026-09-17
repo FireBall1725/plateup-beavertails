@@ -15,7 +15,8 @@ namespace BeaverTails {
     {
             (BeaverTailsDish.NameId,
                 "Combine flour and milk into dough. Knead it flat and deep fry it. "
-                + "Dust with cinnamon and sugar in either order, then plate."),
+                + "Dust with cinnamon and sugar in either order, or mix the two together "
+                + "first and apply them in one go, then plate."),
 
             (KillaloeSunriseCard.NameId,
                 "Make a Classic beaver tail first, then add a slice of lemon. "

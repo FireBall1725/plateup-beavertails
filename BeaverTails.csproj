@@ -58,6 +58,7 @@
     <Compile Remove="src/PickerOverlayBase.cs" />
     <Compile Remove="src/ForceEndOfDaySystem.cs" />
     <Compile Remove="src/BrownieDiagnosticSystem.cs" />
+    <Compile Remove="src/UnlockPackDiagnostic.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -70,6 +71,8 @@
     <Reference Include="UnityEngine"><HintPath>$(ManagedDir)/UnityEngine.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.CoreModule"><HintPath>$(ManagedDir)/UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.InputLegacyModule"><HintPath>$(ManagedDir)/UnityEngine.InputLegacyModule.dll</HintPath><Private>false</Private></Reference>
+    <!-- Colliders, for giving a reskinned appliance the footprint it looks like it has. -->
+    <Reference Include="UnityEngine.PhysicsModule"><HintPath>$(ManagedDir)/UnityEngine.PhysicsModule.dll</HintPath><Private>false</Private></Reference>
     <!-- IMGUI, for the card picker overlay. Deliberately not PlateUp's menu system: this
          needs no prefab, no view type and no Harmony patch, so a game update cannot break it. -->
     <!-- Session.HostIdentifier is a SourceIdentifier, which lives here -->

@@ -11,7 +11,100 @@ using UnityEngine;
 namespace BeaverTails {
   // The named products, each a fixed recipe rather than a tail with optional extras.
 
-  // PlateUp merges two items at a time, so the three components go on in stages.
+  // A fried tail wearing one of the two dustings.
+  //
+  // Its own item rather than a half-built Classic, because a Partial ItemGroup survives being
+  // plated as a complete one: AttemptComponentMerge reads the PLATE's satisfaction and not the
+  // tail's, so a tail with cinnamon alone used to serve as a finished Cinnamon Sugar Tail and
+  // wore the finished model while it did.
+  public abstract class BeaverTailDustedItem : CustomItemGroup {
+    protected abstract string TailName { get; }
+
+    protected abstract (string Asset, string Child, Color Colour) Dusting { get; }
+
+    // A property rather than a field, because IngredientLib fills its dictionaries during its own Convert.
+    protected abstract Item DustingItem { get; }
+
+    protected abstract string DustingTag { get; }
+
+    private GameObject prefab;
+
+    public override GameObject Prefab {
+      get => prefab ?? ( prefab = BeaverTailClassicItem.BuildDusted( TailName, Dusting ));
+      protected set { }
+    }
+
+    // One mandatory set of two, the shape every other stage in the mod uses: the single merge
+    // completes it, so this item is never Partial.
+    public override List<ItemGroup.ItemSet> Sets {
+      get => new List<ItemGroup.ItemSet>
+      {
+                new ItemGroup.ItemSet
+                {
+                    Min = 2,
+                    Max = 2,
+                    IsMandatory = true,
+                    Items = new List<Item>
+                    {
+                        Gdo.Own<Item>(BeaverTailCookedItem.NameId),
+                        DustingItem,
+                    },
+                },
+            };
+      protected set { }
+    }
+
+    public override ItemValue ItemValue {
+      get => ItemValue.Small;
+      protected set { }
+    }
+
+    public override List<ItemGroupView.ColourBlindLabel> Labels {
+      get => new List<ItemGroupView.ColourBlindLabel>
+      {
+                new ItemGroupView.ColourBlindLabel { Item = DustingItem, Text = DustingTag },
+            };
+      protected set { }
+    }
+
+    public override string ColourBlindTag {
+      get => DustingTag;
+      protected set { }
+    }
+  }
+
+  public class BeaverTailCinnamonItem : BeaverTailDustedItem {
+    public const string NameId = "beavertail_cinnamon";
+
+    public override string UniqueNameID => NameId;
+
+    protected override string TailName => "Beaver Tail - Cinnamon";
+
+    protected override (string Asset, string Child, Color Colour) Dusting =>
+        BeaverTailClassicItem.CinnamonDusting;
+
+    protected override Item DustingItem => Gdo.Lib( Gdo.LibKeys.Cinnamon );
+
+    protected override string DustingTag => "C";
+  }
+
+  public class BeaverTailSugarItem : BeaverTailDustedItem {
+    public const string NameId = "beavertail_sugar";
+
+    public override string UniqueNameID => NameId;
+
+    protected override string TailName => "Beaver Tail - Sugar";
+
+    protected override (string Asset, string Child, Color Colour) Dusting =>
+        BeaverTailClassicItem.SugarDusting;
+
+    protected override Item DustingItem => Gdo.Item( ItemReferences.Sugar );
+
+    protected override string DustingTag => "S";
+  }
+
+  // The finished dusted tail. Reached three ways: cinnamon then sugar, sugar then cinnamon, or
+  // premixed cinnamon sugar in one go.
   public class BeaverTailClassicItem : CustomItemGroup {
     public const string NameId = "beavertail_classic";
 
@@ -22,29 +115,33 @@ namespace BeaverTails {
 
     private GameObject prefab;
 
-    // Cinnamon and sugar are separate children so the view can switch them per component.
+    // Cinnamon and sugar are separate children so the single-dusting stages can take one each.
     public override GameObject Prefab {
-      get => prefab ?? ( prefab = BuildPrefab());
+      get => prefab ?? ( prefab = BuildClassicTail( "Beaver Tail - Classic" ));
       protected set { }
     }
 
     private const string CinnamonChild = "Cinnamon Dusting";
     private const string SugarChild = "Sugar Dusting";
 
-    private static GameObject BuildPrefab() => BuildDusted( "Beaver Tail - Classic" );
+    internal static (string Asset, string Child, Color Colour) CinnamonDusting =>
+        ("CinnamonDusting", CinnamonChild, Cinnamon);
+
+    internal static (string Asset, string Child, Color Colour) SugarDusting =>
+        ("SugarDusting", SugarChild, Sugar);
 
     // A fried tail wearing both dustings, shared with Killaloe.
-    internal static GameObject BuildDusted( string name ) {
+    internal static GameObject BuildClassicTail( string name ) =>
+        BuildDusted( name, CinnamonDusting, SugarDusting );
+
+    internal static GameObject BuildDusted(
+        string name, params (string Asset, string Child, Color Colour)[] dustings ) {
       var tail = Gdo.CloneFromBundle( "BeaverTail", name, CookedColour );
       if ( tail == null ) {
         return null;
       }
 
-      foreach ( var (asset, child, colour) in new[]
-      {
-                ("CinnamonDusting", CinnamonChild, Cinnamon),
-                ("SugarDusting", SugarChild, Sugar),
-      } ) {
+      foreach ( var (asset, child, colour) in dustings ) {
         var dusting = Gdo.CloneFromBundle( asset, child, colour );
         if ( dusting == null ) {
           continue;
@@ -60,7 +157,7 @@ namespace BeaverTails {
       return tail;
     }
 
-    // An unmapped component draws nothing, so anything added to Sets needs a group here too.
+    // An unmapped component draws nothing, so anything in Sets needs a group here too.
     public override void OnRegister( ItemGroup gameDataObject ) {
       base.OnRegister( gameDataObject );
 
@@ -98,29 +195,39 @@ namespace BeaverTails {
 
     internal static Color Sugar => new Color( 0.96f, 0.94f, 0.90f );
 
+    // Three sets of one, all MANDATORY. Mandatory is what closes the bug: a set short of Min
+    // reports Impossible rather than Partial, so a tail wearing one dusting is not a half-built
+    // Classic that a plate can finish for it. It is refused outright, and lands on
+    // BeaverTailCinnamonItem or BeaverTailSugarItem instead, which are complete items.
+    //
+    // Every way in still works, because a merge concatenates component lists and this shape is
+    // reached by all three:
+    //   a once-dusted tail plus the other dusting -> {cooked, Cinnamon, Sugar}
+    //   a cooked tail plus premixed cinnamon sugar -> {cooked, Cinnamon, Sugar}
+    // AttemptItemMerge finds both through SingleWrapperMergeResult, which flattens the group on
+    // whichever side is already a group.
     public override List<ItemGroup.ItemSet> Sets {
       get => new List<ItemGroup.ItemSet>
       {
-                // Three sets, none mandatory, so cinnamon and sugar go on in either order.
                 new ItemGroup.ItemSet
                 {
                     Min = 1,
                     Max = 1,
-                    IsMandatory = false,
+                    IsMandatory = true,
                     Items = new List<Item> { Gdo.Own<Item>(BeaverTailCookedItem.NameId) },
                 },
                 new ItemGroup.ItemSet
                 {
                     Min = 1,
                     Max = 1,
-                    IsMandatory = false,
+                    IsMandatory = true,
                     Items = new List<Item> { Gdo.Lib(Gdo.LibKeys.Cinnamon) },
                 },
                 new ItemGroup.ItemSet
                 {
                     Min = 1,
                     Max = 1,
-                    IsMandatory = false,
+                    IsMandatory = true,
                     Items = new List<Item> { Gdo.Item(ItemReferences.Sugar) },
                 },
             };
@@ -132,7 +239,8 @@ namespace BeaverTails {
       protected set { }
     }
 
-    // An ItemGroup's label comes from the view's ComponentLabels, not from ColourBlindTag.
+    // An ItemGroup's label comes from the view's ComponentLabels, not from ColourBlindTag. The
+    // view walks this list in order rather than the components, so either assembly order reads CS.
     public override List<ItemGroupView.ColourBlindLabel> Labels {
       get => new List<ItemGroupView.ColourBlindLabel>
       {
@@ -199,14 +307,14 @@ namespace BeaverTails {
 
     private static GameObject BuildPrefab() {
       // Killaloe is the Classic with a lemon slice, so it is built the same way.
-      var tail = BeaverTailClassicItem.BuildDusted( "Beaver Tail - Killaloe Sunrise" );
+      var tail = BeaverTailClassicItem.BuildClassicTail( "Beaver Tail - Killaloe Sunrise" );
       if ( tail == null ) {
         return null;
       }
 
       var lemon = Gdo.Item( ItemReferences.LemonSliced )?.Prefab;
       if ( lemon != null ) {
-        var slice = Object.Instantiate( lemon, tail.transform );
+        var slice = Gdo.Unlabel( Object.Instantiate( lemon, tail.transform ));
         slice.name = "Lemon Slice";
         slice.transform.localPosition = new Vector3( 0.18f, 0.08f, 0f );
         slice.transform.localScale = Vector3.one * 0.6f;

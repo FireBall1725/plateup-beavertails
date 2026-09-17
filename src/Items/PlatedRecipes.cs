@@ -83,6 +83,13 @@ namespace BeaverTails {
       protected set { }
     }
 
+    // The bin reads DisposesTo and nothing else; DirtiesTo only covers a customer finishing.
+    // Without this, binning a plated tail eats the plate along with the food.
+    public override Item DisposesTo {
+      get => Gdo.Item( ItemReferences.PlateDirty );
+      protected set { }
+    }
+
     // The view renders the components and is where KitchenLib writes the colourblind labels.
     public override bool AutoSetupItemGroupView {
       get => true;
@@ -147,7 +154,7 @@ namespace BeaverTails {
         var existing = plate.transform.Find( side.Child );
         var obj = existing != null
             ? existing.gameObject
-            : Object.Instantiate( side.Item.Prefab, plate.transform );
+            : Gdo.Unlabel( Object.Instantiate( side.Item.Prefab, plate.transform ));
 
         obj.name = side.Child;
         obj.transform.localPosition = SideOffset;
@@ -177,7 +184,7 @@ namespace BeaverTails {
 
       var recipe = Gdo.Own<Item>( RecipeNameId );
       if ( recipe?.Prefab != null ) {
-        var tail = Object.Instantiate( recipe.Prefab, plate.transform );
+        var tail = Gdo.Unlabel( Object.Instantiate( recipe.Prefab, plate.transform ));
         tail.name = PlatedTailChild;
         tail.transform.localPosition = new Vector3( 0f, 0.06f, 0f );
       }

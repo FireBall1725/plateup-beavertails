@@ -15,16 +15,32 @@ are load-bearing, and the section on dependencies below says what breaks without
 
 ## The base dish
 
-Six items, and the whole mod hangs off this chain:
+Eight items, and the whole mod hangs off this chain:
 
 ```
 Flour + Milk                    ->  Beaver Tail Dough      (an ItemGroup, no process)
 Beaver Tail Dough   --Knead 2s->     Beaver Tail - Raw
 Beaver Tail - Raw   --FryMe 4s->     Beaver Tail
 Beaver Tail         --FryMe 20s->    Beaver Tail - Burned  (IsBad)
-Beaver Tail + Sugar             ->  Beaver Tail - Cinnamon Sugar
+Beaver Tail + Cinnamon          ->  Beaver Tail - Cinnamon
+Beaver Tail + Sugar             ->  Beaver Tail - Sugar
+Tail - Cinnamon + Sugar         ->  Beaver Tail - Cinnamon Sugar
+Tail - Sugar + Cinnamon         ->  Beaver Tail - Cinnamon Sugar
+Cinnamon + Sugar                ->  Cinnamon Sugar       (premixed, one application)
+Beaver Tail + Cinnamon Sugar    ->  Beaver Tail - Cinnamon Sugar
 Cinnamon Sugar + Plate          ->  the menu item
 ```
+
+Three ways in, and all of them land on the same item: cinnamon first, sugar first, or the two
+mixed beforehand and tipped on in one go. The premix names no recipe and needs to; a merge
+concatenates component lists, so a cooked tail plus premixed cinnamon sugar reaches the same
+`{cooked, cinnamon, sugar}` the two-step route does.
+
+The Classic's three sets are all mandatory, and that is what stops a tail wearing one dusting
+being served as a finished one. A mandatory set short of its `Min` reports `Impossible` rather
+than `Partial`, so the half-dusted shape is refused outright and lands on its own item instead.
+It matters because a partial `ItemGroup` turns into a complete one the moment it goes on a plate:
+`AttemptComponentMerge` reads the plate's satisfaction and not the food's.
 
 Dough is its own `ItemGroup` rather than the base game's, because an item gets one process
 per branch and the game's `Dough` has already spent its Knead on pie crust and its Cook on

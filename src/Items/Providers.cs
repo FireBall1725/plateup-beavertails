@@ -55,6 +55,11 @@ namespace BeaverTails {
         return null;
       }
 
+      // It wears a countertop, so it has to BE a countertop to walk past. The nut dispenser
+      // underneath is a different shape and off-centre, so a cook moving along a row of
+      // counters catches on ours, at some rotations more than others.
+      Gdo.MatchCollision( bin, ApplianceReferences.Countertop );
+
       // The counter is the base game's; IngredientLib applies its materials too late and theirs comes out magenta.
       var skin = Gdo.ReskinApplianceWith(
           bin, Gdo.ApplianceVisual( ApplianceReferences.Countertop, "Counter" ), fit: false );

@@ -177,7 +177,11 @@ namespace BeaverTails {
     }
   }
 
-  // Premixed cinnamon sugar, free because merging concatenates component lists, so one application satisfies both of the Classic's sets.
+  // Premixed cinnamon sugar: both dustings in one application.
+  //
+  // It carries no reference to the Classic and needs none. A merge concatenates component lists,
+  // so tipping this onto a cooked tail produces {cooked, Cinnamon, Sugar}, which is exactly the
+  // Classic's three sets. The shortcut is a real one: one trip to the tail instead of two.
   public class CinnamonSugarItem : CustomItemGroup {
     public const string NameId = "cinnamon_sugar";
 
@@ -191,6 +195,8 @@ namespace BeaverTails {
       protected set { }
     }
 
+    // Mandatory is safe on two sets of one, because the single merge that makes this completes
+    // both, and it keeps a lone dusting from reading as a half-made premix.
     public override List<ItemGroup.ItemSet> Sets {
       get => new List<ItemGroup.ItemSet>
       {
@@ -198,14 +204,14 @@ namespace BeaverTails {
                 {
                     Min = 1,
                     Max = 1,
-                    IsMandatory = false,
+                    IsMandatory = true,
                     Items = new List<Item> { Gdo.Lib(Gdo.LibKeys.Cinnamon) },
                 },
                 new ItemGroup.ItemSet
                 {
                     Min = 1,
                     Max = 1,
-                    IsMandatory = false,
+                    IsMandatory = true,
                     Items = new List<Item> { Gdo.Item(ItemReferences.Sugar) },
                 },
             };

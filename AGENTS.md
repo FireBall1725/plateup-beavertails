@@ -82,6 +82,35 @@ dough. No `MergeCondition` fixes it, because `AttemptItemMerge` reaches the tray
 branch that needs only `CanComp` on the brownie side, which is the flag BrWOWnie needs too.
 `BrownieMergePatch` relaxes the condition for that one pairing instead.
 
+**A partial `ItemGroup` becomes a complete one the moment it is plated.** `AttemptComponentMerge`
+creates the result with `is_partial` taken from the PLATE's satisfaction, not the food's, and
+nothing rechecks it afterwards. A tail carrying one of the two dustings served as a finished
+Cinnamon Sugar Tail because of this, and the plate's component list keeps the tail as a single id,
+so the view cannot tell the variants apart either. The fix is `IsMandatory = true`: a mandatory set
+short of its `Min` reports `Impossible` rather than `Partial`, so the half-built shape is refused
+and has to land on an item of its own. Give it one, rather than reaching for `IsMandatory = false`
+to make the assembly order flexible. Order stays flexible anyway, because a merge concatenates
+component lists and every route reaches the same flat list.
+
+**The plate's side slot takes any item, not the sides you meant.** `CanContainSide` on the group
+plus `IsMergeableSide` on the item is the whole test in `IsGroupSatisfied`; there is no allow-list.
+A sliced lemon dropped onto a finished plate was swallowed, drew nothing, and `IsRequestSatisfied`
+still reported the dish as correct. `PlatedMergePatch` refuses that pairing by name rather than
+allow-listing the sides, because the slot is how our own poutine and chips reach a plate. The
+maple syrup card is NOT in this slot: an extra order is matched by `AcceptIntoExtraSatisfaction`
+against `CWaitingForItem.Extra` and skipped entirely when `TransferFlags.RequireMerge` is set, so
+the bottle goes to the table and never merges into the dish.
+
+**`Appliance.ApplianceProcesses.Speed` is per appliance, and a custom process has to copy it.**
+`ProcessesView` turns the entry into `Speed / Duration`, so writing a flat 1 makes a Danger Hob and
+a Safety Hob cook a pot at the same rate while vanilla's own Cook keeps 2x and starter pace on
+those same two appliances. `Gdo.TeachProcess` takes a `speedFrom` process and reads the donor's
+value off each appliance.
+
+**The bin reads `DisposesTo`, not `DirtiesTo`.** `AcceptIntoBin.AcceptTransfer` hands back
+`Item.DisposesTo` and nothing else. `DirtiesTo` only covers a customer finishing a meal, so a
+plated dish that set one and not the other took the plate into the bin along with the food.
+
 **Adding a helper method directly above a patched method steals its attributes.** C# attributes
 bind to the next declaration, so an inserted helper takes the `[HarmonyPatch]` and the mod fails
 to load with a parameter-binding error naming a method you did not patch. Attach helpers below a

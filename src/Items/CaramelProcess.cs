@@ -56,7 +56,9 @@ namespace BeaverTails {
                     // Not TableSharingCauldron, which is a dining table rather than a cooker.
                     ApplianceReferences.Cauldron,
           },
-          "caramelise" );
+          "caramelise",
+          // so a Danger Hob still cooks our pots at its own 2x and a Safety Hob at starter pace
+          Gdo.Process( ProcessReferences.Cook ));
     }
   }
 }

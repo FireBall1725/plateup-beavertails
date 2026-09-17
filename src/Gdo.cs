@@ -169,6 +169,63 @@ namespace BeaverTails {
       return model.transform;
     }
 
+    // Take a component's own colourblind label off a copy that goes inside a group.
+    //
+    // KitchenLib stamps a "Colour Blind" child onto every registered item's prefab, so cloning
+    // that prefab into another one clones the label with it. A plated tail then carried the
+    // plate's CS and the tail's own CS, a few millimetres apart, which reads as ghosted text.
+    // The group's view is what speaks for the finished item; the parts inside it have nothing
+    // to say on their own.
+    //
+    // Call it on the CLONE, never on the host: the host's label is the one being kept.
+    //
+    // DestroyImmediate, not Destroy: this runs while a prefab is being built, and a deferred
+    // destroy would not have happened by the time anything reads it.
+    public static UnityEngine.GameObject Unlabel( UnityEngine.GameObject clone ) {
+      if ( clone == null ) {
+        return null;
+      }
+
+      foreach ( var child in clone.GetComponentsInChildren<UnityEngine.Transform>( true )) {
+        if ( child != null && child.name == "Colour Blind" ) {
+          UnityEngine.Object.DestroyImmediate( child.gameObject );
+        }
+      }
+
+      return clone;
+    }
+
+    // Give an appliance the collision of another one.
+    //
+    // A reskin changes what an appliance LOOKS like and nothing else, so a bin built on a nut
+    // dispenser and wearing a countertop has a nut dispenser's footprint: a cook walking along
+    // a row of counters snags on it, because it is not the shape it appears to be. The donor's
+    // collider is also offset from the appliance origin, and an appliance rotates about that
+    // origin, so the mismatch is worse at some rotations than others.
+    //
+    // Only the colliders are replaced. The host keeps its own views and properties, which are
+    // the reason it was borrowed in the first place.
+    public static UnityEngine.GameObject MatchCollision( UnityEngine.GameObject appliance, int donorId ) {
+      var donor = Appliance( donorId )?.Prefab;
+      if ( appliance == null || donor == null ) {
+        UnityEngine.Debug.LogWarning( $"[BeaverTails] no donor {donorId} to take collision from" );
+        return appliance;
+      }
+
+      foreach ( var collider in appliance.GetComponentsInChildren<UnityEngine.Collider>( true )) {
+        UnityEngine.Object.DestroyImmediate( collider );
+      }
+
+      foreach ( var box in donor.GetComponentsInChildren<UnityEngine.BoxCollider>( true )) {
+        var copy = appliance.AddComponent<UnityEngine.BoxCollider>();
+        copy.center = box.center;
+        copy.size = box.size;
+        copy.isTrigger = box.isTrigger;
+      }
+
+      return appliance;
+    }
+
     // Replace an appliance's visible geometry, scaled to the footprint the original occupied.
     public static UnityEngine.Transform ReskinAppliance(
         UnityEngine.GameObject appliance, string bundleAsset, UnityEngine.Color tint ) {
@@ -532,7 +589,13 @@ namespace BeaverTails {
         GDOUtils.GetCustomGameDataObject<KitchenFryer.FryMe>()?.GameDataObject as Process;
 
     // Teaches weak variants too, and must run from OnRegister since the process index is built once.
-    public static void TeachProcess( Process process, int[] applianceIds, string label ) {
+    //
+    // speedFrom is the vanilla process whose per-appliance rate this one should share.
+    // ProcessesView turns the entry into Speed / Duration, so a flat 1 here makes a Danger Hob
+    // and a Safety Hob cook our pots at identical speed while vanilla's own Cook keeps 2x and
+    // starter pace on the same two appliances.
+    public static void TeachProcess(
+        Process process, int[] applianceIds, string label, Process speedFrom = null ) {
       if ( process == null ) {
         Debug.LogError( $"[BeaverTails] {label}: process is null, taught nothing" );
         return;
@@ -551,19 +614,37 @@ namespace BeaverTails {
             appliance.Processes = new List<Appliance.ApplianceProcesses>();
           }
 
+          var model = MatchingProcess( appliance, speedFrom );
+
           appliance.Processes.Add( new Appliance.ApplianceProcesses {
             Process = process,
-            IsAutomatic = true,
-            Speed = 1f,
+            IsAutomatic = model.HasValue ? model.Value.IsAutomatic : true,
+            Speed = model.HasValue ? model.Value.Speed : 1f,
             Validity = ProcessValidity.Generic,
           } );
 
-          taught.Add( appliance.name );
+          taught.Add( model.HasValue
+              ? $"{appliance.name} x{model.Value.Speed}"
+              : $"{appliance.name} x1 (no model)" );
         }
       }
 
       Debug.Log( $"[BeaverTails] {label} taught to {taught.Count}: "
                 + string.Join( ", ", taught.ToArray()));
+    }
+
+    private static Appliance.ApplianceProcesses? MatchingProcess( Appliance appliance, Process wanted ) {
+      if ( wanted == null || appliance?.Processes == null ) {
+        return null;
+      }
+
+      foreach ( var entry in appliance.Processes ) {
+        if ( entry.Process != null && entry.Process.ID == wanted.ID ) {
+          return entry;
+        }
+      }
+
+      return null;
     }
 
     public static T Own<T>( string uniqueNameId ) where T : GameDataObject =>
