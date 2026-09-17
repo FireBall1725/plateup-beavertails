@@ -532,7 +532,13 @@ namespace BeaverTails {
         GDOUtils.GetCustomGameDataObject<KitchenFryer.FryMe>()?.GameDataObject as Process;
 
     // Teaches weak variants too, and must run from OnRegister since the process index is built once.
-    public static void TeachProcess( Process process, int[] applianceIds, string label ) {
+    //
+    // speedFrom is the vanilla process whose per-appliance rate this one should share.
+    // ProcessesView turns the entry into Speed / Duration, so a flat 1 here makes a Danger Hob
+    // and a Safety Hob cook our pots at identical speed while vanilla's own Cook keeps 2x and
+    // starter pace on the same two appliances.
+    public static void TeachProcess(
+        Process process, int[] applianceIds, string label, Process speedFrom = null ) {
       if ( process == null ) {
         Debug.LogError( $"[BeaverTails] {label}: process is null, taught nothing" );
         return;
@@ -551,19 +557,37 @@ namespace BeaverTails {
             appliance.Processes = new List<Appliance.ApplianceProcesses>();
           }
 
+          var model = MatchingProcess( appliance, speedFrom );
+
           appliance.Processes.Add( new Appliance.ApplianceProcesses {
             Process = process,
-            IsAutomatic = true,
-            Speed = 1f,
+            IsAutomatic = model.HasValue ? model.Value.IsAutomatic : true,
+            Speed = model.HasValue ? model.Value.Speed : 1f,
             Validity = ProcessValidity.Generic,
           } );
 
-          taught.Add( appliance.name );
+          taught.Add( model.HasValue
+              ? $"{appliance.name} x{model.Value.Speed}"
+              : $"{appliance.name} x1 (no model)" );
         }
       }
 
       Debug.Log( $"[BeaverTails] {label} taught to {taught.Count}: "
                 + string.Join( ", ", taught.ToArray()));
+    }
+
+    private static Appliance.ApplianceProcesses? MatchingProcess( Appliance appliance, Process wanted ) {
+      if ( wanted == null || appliance?.Processes == null ) {
+        return null;
+      }
+
+      foreach ( var entry in appliance.Processes ) {
+        if ( entry.Process != null && entry.Process.ID == wanted.ID ) {
+          return entry;
+        }
+      }
+
+      return null;
     }
 
     public static T Own<T>( string uniqueNameId ) where T : GameDataObject =>
