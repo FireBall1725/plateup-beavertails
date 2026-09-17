@@ -302,7 +302,7 @@ namespace BeaverTails {
 
       var lemon = Gdo.Item( ItemReferences.LemonSliced )?.Prefab;
       if ( lemon != null ) {
-        var slice = Object.Instantiate( lemon, tail.transform );
+        var slice = Gdo.Unlabel( Object.Instantiate( lemon, tail.transform ));
         slice.name = "Lemon Slice";
         slice.transform.localPosition = new Vector3( 0.18f, 0.08f, 0f );
         slice.transform.localScale = Vector3.one * 0.6f;

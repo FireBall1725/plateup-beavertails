@@ -169,6 +169,32 @@ namespace BeaverTails {
       return model.transform;
     }
 
+    // Take a component's own colourblind label off a copy that goes inside a group.
+    //
+    // KitchenLib stamps a "Colour Blind" child onto every registered item's prefab, so cloning
+    // that prefab into another one clones the label with it. A plated tail then carried the
+    // plate's CS and the tail's own CS, a few millimetres apart, which reads as ghosted text.
+    // The group's view is what speaks for the finished item; the parts inside it have nothing
+    // to say on their own.
+    //
+    // Call it on the CLONE, never on the host: the host's label is the one being kept.
+    //
+    // DestroyImmediate, not Destroy: this runs while a prefab is being built, and a deferred
+    // destroy would not have happened by the time anything reads it.
+    public static UnityEngine.GameObject Unlabel( UnityEngine.GameObject clone ) {
+      if ( clone == null ) {
+        return null;
+      }
+
+      foreach ( var child in clone.GetComponentsInChildren<UnityEngine.Transform>( true )) {
+        if ( child != null && child.name == "Colour Blind" ) {
+          UnityEngine.Object.DestroyImmediate( child.gameObject );
+        }
+      }
+
+      return clone;
+    }
+
     // Give an appliance the collision of another one.
     //
     // A reskin changes what an appliance LOOKS like and nothing else, so a bin built on a nut

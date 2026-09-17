@@ -604,7 +604,7 @@ namespace BeaverTails {
 
       var poutine = Gdo.Own<Item>( PoutineItem.NameId )?.Prefab;
       if ( poutine != null ) {
-        var copy = Object.Instantiate( poutine, root.transform );
+        var copy = Gdo.Unlabel( Object.Instantiate( poutine, root.transform ));
         copy.name = PoutineChild;
         copy.transform.localPosition = Vector3.zero;
       }

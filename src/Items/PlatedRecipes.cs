@@ -154,7 +154,7 @@ namespace BeaverTails {
         var existing = plate.transform.Find( side.Child );
         var obj = existing != null
             ? existing.gameObject
-            : Object.Instantiate( side.Item.Prefab, plate.transform );
+            : Gdo.Unlabel( Object.Instantiate( side.Item.Prefab, plate.transform ));
 
         obj.name = side.Child;
         obj.transform.localPosition = SideOffset;
@@ -184,7 +184,7 @@ namespace BeaverTails {
 
       var recipe = Gdo.Own<Item>( RecipeNameId );
       if ( recipe?.Prefab != null ) {
-        var tail = Object.Instantiate( recipe.Prefab, plate.transform );
+        var tail = Gdo.Unlabel( Object.Instantiate( recipe.Prefab, plate.transform ));
         tail.name = PlatedTailChild;
         tail.transform.localPosition = new Vector3( 0f, 0.06f, 0f );
       }
